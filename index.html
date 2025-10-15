@@ -66,7 +66,7 @@ function drawQR(canvas, text, size=256){
   // ここではコンパクトに、qrcodejsの最小版をインライン読み込みします
 }
 </script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js"></script>
 <script>
 const $ = id => document.getElementById(id);
 const base = $('base');
@@ -135,7 +135,88 @@ savePng.addEventListener('click', ()=>{
 });
 
 // 初期レンダリング（患者IDが既に入っていれば表示）
-render();
+<script>
+  const $ = id => document.getElementById(id);
+  const base = $('base');
+  const qname = $('qname');
+  const pid = $('pid');
+  const final = $('final');
+  const make = $('make');
+  const qr = $('qr');
+  const copyUrl = $('copyUrl');
+  const savePng = $('savePng');
+
+  const DEFAULT_BASE = 'https://ynakazawa1224-byte.github.io/grotti-patient/';
+  const DEFAULT_QNAME = 'patient_id';
+
+  base.value = localStorage.getItem('qr_base') || DEFAULT_BASE;
+  qname.value = localStorage.getItem('qr_qname') || DEFAULT_QNAME;
+
+  function buildUrl(){
+    const b = (base.value || '').trim();
+    const q = (qname.value || '').trim() || DEFAULT_QNAME;
+    const p = (pid.value || '').trim();
+    if(!b || !p) return '';
+    const sep = b.includes('?') ? '&' : '?';
+    return `${b}${sep}${encodeURIComponent(q)}=${encodeURIComponent(p)}`;
+  }
+
+  // ←←← ここから render() を全置換
+  async function render(){
+    const url = buildUrl();
+    final.textContent = url || '—';
+    final.href = url || '#';
+
+    const ctx = qr.getContext('2d');
+    // まず真っ白に塗ってから描画（黒塗りや未描画対策）
+    ctx.clearRect(0,0,qr.width,qr.height);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0,0,qr.width,qr.height);
+
+    if(!url) return;
+
+    try{
+      await QRCode.toCanvas(qr, url, {
+        errorCorrectionLevel: 'M',
+        width: 256,
+        margin: 1,
+        color: { dark: '#000000', light: '#ffffff' }
+      });
+    }catch(e){
+      console.error('QR render error:', e);
+      alert('QRの作成に失敗しました（コンソールにエラーあり）');
+    }
+  }
+  // ←←← ここまで
+
+  make.addEventListener('click', ()=>{
+    localStorage.setItem('qr_base', base.value.trim());
+    localStorage.setItem('qr_qname', qname.value.trim() || DEFAULT_QNAME);
+    render();
+  });
+
+  copyUrl.addEventListener('click', async ()=>{
+    const url = buildUrl();
+    if(!url) return alert('先にリンクを作成してください');
+    try{
+      await navigator.clipboard.writeText(url);
+      alert('URLをコピーしました');
+    }catch(e){ alert('コピーに失敗しました'); }
+  });
+
+  savePng.addEventListener('click', ()=>{
+    const url = buildUrl();
+    if(!url) return alert('先にリンクを作成してください');
+    const a = document.createElement('a');
+    a.download = (pid.value || 'qr') + '.png';
+    a.href = qr.toDataURL('image/png');
+    a.click();
+  });
+
+  // 初期表示
+  render();
+</script>
+
 </script>
 </body>
 </html>
