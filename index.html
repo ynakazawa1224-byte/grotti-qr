@@ -1,222 +1,187 @@
 <!doctype html>
 <html lang="ja">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>患者入力リンク & QR 生成（GROTTI II）</title>
-<meta name="color-scheme" content="dark light">
-<style>
-  :root{--bg:#0b1622;--panel:#0f1f2f;--line:#334155;--txt:#e5e7eb;--muted:#9ca3af;--accent:#8b5cf6}
-  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Noto Sans JP",sans-serif}
-  header{padding:16px;text-align:center;font-weight:700;border-bottom:1px solid var(--line)}
-  main{max-width:960px;margin:0 auto;padding:16px}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
-  label{font-size:14px;color:#cbd5e1;display:block;margin:12px 0 6px}
-  input{width:100%;padding:12px;border-radius:10px;border:1px solid var(--line);background:#09121b;color:#e5e7eb;font-size:16px}
-  .row{display:grid;grid-template-columns:1fr auto;gap:10px}
-  .btn{padding:12px 16px;border-radius:10px;border:1px solid transparent;background:linear-gradient(90deg,#a78bfa,#60a5fa);color:#08101c;font-weight:700;cursor:pointer}
-  .muted{font-size:12px;color:#9ca3af}
-  .flex{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-  .qrwrap{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;margin-top:12px}
-  canvas{background:#fff;border-radius:8px}
-  .link{word-break:break-all}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>患者入力リンク & QR 生成（GROTTI II）</title>
+  <style>
+    :root { --bg:#0f172a; --fg:#e5e7eb; --muted:#94a3b8; --accent:#60a5fa; }
+    body{ margin:0; background:var(--bg); color:var(--fg); font:16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", sans-serif; }
+    .wrap{ max-width:960px; margin:40px auto; padding:0 16px; }
+    h1{ font-size:20px; margin:0 0 18px; }
+    .card{ background:#0b1220; border:1px solid #1e293b; border-radius:12px; padding:20px; }
+    .row{ display:grid; grid-template-columns: 1fr; gap:14px; }
+    @media (min-width:900px){ .row{ grid-template-columns: 1.2fr 1fr; } }
+    label{ display:block; font-weight:700; font-size:14px; color:var(--muted); margin-bottom:6px; }
+    input{ width:100%; padding:12px 12px; border-radius:10px; border:1px solid #334155; background:#0a1020; color:var(--fg); outline:none; }
+    input::placeholder{ color:#718096; }
+    .btn{ display:inline-block; padding:10px 14px; border-radius:10px; border:1px solid #334155; background:#0a1020; color:var(--fg); cursor:pointer; }
+    .btn.primary{ background:linear-gradient(90deg,#3b82f6,#06b6d4); border-color:transparent; }
+    .hint{ color:var(--muted); font-size:12px; margin-top:8px; }
+    .final{ display:block; margin-top:10px; color:#93c5fd; word-break:break-all; }
+    .qrbox{ display:flex; align-items:center; justify-content:center; background:#0a1020; border:1px solid #334155; width:280px; height:280px; border-radius:12px; }
+    .bar{ display:flex; gap:10px; margin-top:14px; }
+  </style>
+  <!-- 安定のCDNJS版：qrcodejs 1.0.0 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
-<header>患者入力リンク & QR 生成（GROTTI II）</header>
-<main>
-  <section class="card">
-    <div class="flex">
-      <div style="font-weight:700">ベースURL（患者入力ページ）</div>
-      <div class="muted">例：GitHub Pages の患者入力</div>
-    </div>
-    <input id="base" placeholder="https://.../grotti-patient/" />
+  <div class="wrap">
+    <h1>患者入力リンク & QR 生成（GROTTI II）</h1>
+    <div class="card">
+      <div class="row">
+        <div>
+          <label>ベースURL（患者入力ページ）</label>
+          <input id="base" placeholder="https://.../grotti-patient/" />
+          <div class="hint">例：https://ynakazawa1224-byte.github.io/grotti-patient/</div>
 
-    <label>患者IDのクエリ名</label>
-    <input id="qname" placeholder="patient_id（推奨）" />
+          <label style="margin-top:12px;">患者IDのクエリ名</label>
+          <input id="qname" placeholder="patient_id" />
 
-    <label>患者ID</label>
-    <div class="row">
-      <input id="pid" placeholder="例：P001">
-      <button id="make" class="btn">リンクを作成 & QR生成</button>
-    </div>
+          <label style="margin-top:12px;">患者ID</label>
+          <input id="pid" placeholder="例：P001" />
 
-    <div class="qrwrap">
-      <div>
-        <div class="muted">最終URL（クリックで開く）:</div>
-        <div class="link"><a id="final" href="#" target="_blank" rel="noopener">—</a></div>
-        <div class="flex" style="margin-top:10px">
-          <button id="copyUrl" class="btn" type="button">URLをコピー</button>
-          <button id="savePng" class="btn" type="button">QRをPNGで保存</button>
+          <div class="bar">
+            <button id="make" class="btn primary">リンクを作成 & QR生成</button>
+            <button id="copyUrl" class="btn">URLをコピー</button>
+            <button id="savePng" class="btn">QRをPNGで保存</button>
+          </div>
+
+          <a id="final" class="final" href="#" target="_blank"></a>
+          <div class="hint">※ PNG保存は生成されたキャンバス画像を保存します。</div>
         </div>
-        <div class="muted" style="margin-top:8px">※ PNG保存は生成されたcanvasを画像保存します。</div>
-      </div>
-      <div>
-        <canvas id="qr" width="256" height="256"></canvas>
+
+        <div style="display:flex;justify-content:center;align-items:center;">
+          <div id="qrBox" class="qrbox">
+            <!-- ここにQR（canvas or img）が入る -->
+          </div>
+        </div>
       </div>
     </div>
-  </section>
-</main>
+  </div>
 
-<!-- QRコード生成（qrcodejs, MIT） -->
 <script>
-// 簡易QR生成（依存なし）
-function drawQR(canvas, text, size=256){
-  // 最小実装：第三者CDN依存を避け、オフラインでも動くよう簡易生成（誤り訂正:低）
-  // ここではコンパクトに、qrcodejsの最小版をインライン読み込みします
-}
-</script>
-<script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js"></script>
-<script>
-const $ = id => document.getElementById(id);
-const base = $('base');
-const qname = $('qname');
-const pid = $('pid');
-const final = $('final');
-const make = $('make');
-const qr = $('qr');
-const copyUrl = $('copyUrl');
-const savePng = $('savePng');
-
-// 初期値（GitHub Pages の患者入力ページをセット）
-const DEFAULT_BASE = 'https://ynakazawa1224-byte.github.io/grotti-patient/';
-const DEFAULT_QNAME = 'patient_id';
-
-// 永続化から復元
-base.value = localStorage.getItem('qr_base') || DEFAULT_BASE;
-qname.value = localStorage.getItem('qr_qname') || DEFAULT_QNAME;
-
-// URL組立
-function buildUrl(){
-  const b = (base.value || '').trim();
-  const q = (qname.value || '').trim() || DEFAULT_QNAME;
-  const p = (pid.value || '').trim();
-  if(!b || !p) return '';
-  const sep = b.includes('?') ? '&' : '?';
-  return `${b}${sep}${encodeURIComponent(q)}=${encodeURIComponent(p)}`;
-}
-
-// QR生成
-async function render(){
-  const url = buildUrl();
-  final.textContent = url || '—';
-  final.href = url || '#';
-  const ctx = qr.getContext('2d');
-  ctx.clearRect(0,0,qr.width,qr.height);
-  if(!url) return;
-  await QRCode.toCanvas(qr, url, { width: 256, margin: 1 });
-}
-
-// 作成ボタン
-make.addEventListener('click', ()=>{
-  localStorage.setItem('qr_base', base.value.trim());
-  localStorage.setItem('qr_qname', qname.value.trim() || DEFAULT_QNAME);
-  render();
-});
-
-// URLコピー
-copyUrl.addEventListener('click', async ()=>{
-  const url = buildUrl();
-  if(!url) return alert('先にリンクを作成してください');
-  try{
-    await navigator.clipboard.writeText(url);
-    alert('URLをコピーしました');
-  }catch(e){ alert('コピーに失敗しました'); }
-});
-
-// PNG保存
-savePng.addEventListener('click', ()=>{
-  const url = buildUrl();
-  if(!url) return alert('先にリンクを作成してください');
-  const a = document.createElement('a');
-  a.download = (pid.value || 'qr') + '.png';
-  a.href = qr.toDataURL('image/png');
-  a.click();
-});
-
-// 初期レンダリング（患者IDが既に入っていれば表示）
-<script>
-  const $ = id => document.getElementById(id);
-  const base = $('base');
-  const qname = $('qname');
-  const pid = $('pid');
-  const final = $('final');
-  const make = $('make');
-  const qr = $('qr');
-  const copyUrl = $('copyUrl');
-  const savePng = $('savePng');
-
-  const DEFAULT_BASE = 'https://ynakazawa1224-byte.github.io/grotti-patient/';
+(() => {
+  // 既定値（入っていなくても動く）
+  const DEFAULT_BASE  = 'https://ynakazawa1224-byte.github.io/grotti-patient/';
   const DEFAULT_QNAME = 'patient_id';
 
-  base.value = localStorage.getItem('qr_base') || DEFAULT_BASE;
-  qname.value = localStorage.getItem('qr_qname') || DEFAULT_QNAME;
+  // 要素
+  const base   = document.getElementById('base');
+  const qname  = document.getElementById('qname');
+  const pid    = document.getElementById('pid');
+  const make   = document.getElementById('make');
+  const final  = document.getElementById('final');
+  const qrBox  = document.getElementById('qrBox');
+  const copyUrl= document.getElementById('copyUrl');
+  const savePng= document.getElementById('savePng');
 
-  function buildUrl(){
-    const b = (base.value || '').trim();
-    const q = (qname.value || '').trim() || DEFAULT_QNAME;
+  // 表示上も実値が入るように（プレースホルダではなく）
+  const savedBase  = localStorage.getItem('qr_base');
+  const savedQName = localStorage.getItem('qr_qname');
+  base.value  = (savedBase  && savedBase.trim())  ? savedBase  : DEFAULT_BASE;
+  qname.value = (savedQName && savedQName.trim()) ? savedQName : DEFAULT_QNAME;
+
+  // URL組み立て（ベースやクエリ名が空でも既定値を使う）
+  function buildUrl() {
+    const b = (base.value || DEFAULT_BASE).trim();
+    const q = (qname.value || DEFAULT_QNAME).trim() || DEFAULT_QNAME;
     const p = (pid.value || '').trim();
-    if(!b || !p) return '';
+    if (!b || !p) return '';
     const sep = b.includes('?') ? '&' : '?';
     return `${b}${sep}${encodeURIComponent(q)}=${encodeURIComponent(p)}`;
   }
 
-  // ←←← ここから render() を全置換
-  async function render(){
+  // qrcodejs で描画（img になっても canvas になってもOKにする）
+  function renderQR(url) {
+    // 既存をクリア
+    qrBox.innerHTML = '';
+    // 白背景のdiv（CSP対策兼ねる）
+    const holder = document.createElement('div');
+    qrBox.appendChild(holder);
+
+    /* qrcodejs は DOMに <canvas> か <img> を挿入します */
+    const qr = new QRCode(holder, {
+      text: url,
+      width: 256,
+      height: 256,
+      colorDark: "#000000",
+      colorLight: "#ffffff",
+      correctLevel: QRCode.CorrectLevel.M
+    });
+
+    // 生成後に保存ボタンで使えるよう、少し遅延して参照
+    setTimeout(() => {
+      const child = holder.querySelector('canvas, img');
+      if (!child) return;
+
+      // 保存時に参照する用に data 属性へ保持
+      savePng.dataset.kind = child.tagName.toLowerCase(); // 'canvas' or 'img'
+    }, 100);
+  }
+
+  function actMake() {
     const url = buildUrl();
-    final.textContent = url || '—';
+    final.textContent = url || '';
     final.href = url || '#';
 
-    const ctx = qr.getContext('2d');
-    // まず真っ白に塗ってから描画（黒塗りや未描画対策）
-    ctx.clearRect(0,0,qr.width,qr.height);
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0,0,qr.width,qr.height);
-
-    if(!url) return;
-
-    try{
-      await QRCode.toCanvas(qr, url, {
-        errorCorrectionLevel: 'M',
-        width: 256,
-        margin: 1,
-        color: { dark: '#000000', light: '#ffffff' }
-      });
-    }catch(e){
-      console.error('QR render error:', e);
-      alert('QRの作成に失敗しました（コンソールにエラーあり）');
+    if (!url) {
+      qrBox.innerHTML = '';
+      alert('患者IDを入力してください（ベースURLは自動補完されます）');
+      return;
     }
+
+    // 入力保存
+    localStorage.setItem('qr_base', (base.value || DEFAULT_BASE).trim());
+    localStorage.setItem('qr_qname', (qname.value || DEFAULT_QNAME).trim());
+
+    renderQR(url);
   }
-  // ←←← ここまで
 
-  make.addEventListener('click', ()=>{
-    localStorage.setItem('qr_base', base.value.trim());
-    localStorage.setItem('qr_qname', qname.value.trim() || DEFAULT_QNAME);
-    render();
-  });
+  make.addEventListener('click', actMake);
 
-  copyUrl.addEventListener('click', async ()=>{
+  copyUrl.addEventListener('click', async () => {
     const url = buildUrl();
-    if(!url) return alert('先にリンクを作成してください');
-    try{
+    if (!url) return alert('先にリンクを作成してください');
+    try {
       await navigator.clipboard.writeText(url);
       alert('URLをコピーしました');
-    }catch(e){ alert('コピーに失敗しました'); }
+    } catch (e) {
+      alert('コピーに失敗しました');
+    }
   });
 
-  savePng.addEventListener('click', ()=>{
-    const url = buildUrl();
-    if(!url) return alert('先にリンクを作成してください');
+  // PNG保存（canvas ならそのまま、img なら一度 canvas へ描いてから）
+  savePng.addEventListener('click', () => {
+    const holder = qrBox.querySelector('div');
+    if (!holder) return alert('先にQRを生成してください');
+
+    const child = holder.querySelector('canvas, img');
+    if (!child) return alert('QRが見つかりません');
+
+    let canvas;
+    if (child.tagName.toLowerCase() === 'canvas') {
+      canvas = child;
+    } else {
+      // img → canvas へ書き出して保存
+      canvas = document.createElement('canvas');
+      canvas.width = child.naturalWidth || 256;
+      canvas.height = child.naturalHeight || 256;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(child, 0, 0, canvas.width, canvas.height);
+    }
+
     const a = document.createElement('a');
     a.download = (pid.value || 'qr') + '.png';
-    a.href = qr.toDataURL('image/png');
+    a.href = canvas.toDataURL('image/png');
     a.click();
   });
 
-  // 初期表示
-  render();
-</script>
-
+  // 初期レンダリング（患者IDだけ入れて押せばOKな状態に）
+  final.textContent = '';
+})();
 </script>
 </body>
 </html>
